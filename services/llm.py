@@ -16,9 +16,8 @@ def ask_llm(prompt: str) -> str:
     """
     Send a prompt to Gemini and return the generated text.
     """
-
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.6-flash",
         contents=prompt,
     )
 
