@@ -1,15 +1,7 @@
-import os
-
-from dotenv import load_dotenv
+from config import GEMINI_API_KEY
 from google import genai
 
-# Load environment variables from .env
-load_dotenv()
-
-# Create Gemini client
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 
 def ask_llm(prompt: str) -> str:

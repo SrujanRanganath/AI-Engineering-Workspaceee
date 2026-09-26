@@ -1,11 +1,9 @@
-from fastapi import (
-    APIRouter,
-    HTTPException
-)
-
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
-import os
+from auth.dependencies import get_current_user
+from models.user import User
+from utils.file_security import safe_filename, safe_path
 
 from tools.code_tool.schemas import (
     GenerateCodeRequest,
@@ -17,7 +15,6 @@ from tools.code_tool.schemas import (
     ExplainCodeRequest,
     ExplainCodeResponse,
 )
-
 from tools.code_tool.service import (
     generate_code,
     save_generated_code,
@@ -25,150 +22,96 @@ from tools.code_tool.service import (
     explain_code,
 )
 
-
 router = APIRouter(
     prefix="/code",
     tags=["Code Tool"],
 )
 
 
-@router.post(
-    "/generate",
-    response_model=GenerateCodeResponse
-)
+@router.post("/generate", response_model=GenerateCodeResponse)
 def generate(
-    request: GenerateCodeRequest
+    request: GenerateCodeRequest,
+    current_user: User = Depends(get_current_user),
 ):
-
     try:
-
         code = generate_code(
             request.prompt,
             request.language,
-            request.template
+            request.template,
         )
-
-        return GenerateCodeResponse(
-            code=code
-        )
-
+        return GenerateCodeResponse(code=code)
     except Exception as e:
-
         raise HTTPException(
             status_code=500,
-            detail=f"Code generation failed: {str(e)}"
+            detail=f"Code generation failed: {str(e)}",
         )
 
 
-@router.post(
-    "/save",
-    response_model=SaveCodeResponse
-)
+@router.post("/save", response_model=SaveCodeResponse)
 def save(
-    request: SaveCodeRequest
+    request: SaveCodeRequest,
+    current_user: User = Depends(get_current_user),
 ):
-
     try:
-
-        result = save_generated_code(
-            request.filename,
-            request.code
-        )
-
+        filename = safe_filename(request.filename)
+        result = save_generated_code(filename, request.code)
         return SaveCodeResponse(
             message=result["message"],
-            filename=result["filename"]
+            filename=result["filename"],
         )
-
+    except HTTPException:
+        raise
     except ValueError as e:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post(
-    "/run",
-    response_model=RunCodeResponse
-)
+@router.post("/run", response_model=RunCodeResponse)
 def run(
-    request: RunCodeRequest
+    request: RunCodeRequest,
+    current_user: User = Depends(get_current_user),
 ):
-
     try:
-
-        result = run_generated_code(
-            request.filename
-        )
-
-        return RunCodeResponse(
-            output=result["output"]
-        )
-
+        filename = safe_filename(request.filename)
+        result = run_generated_code(filename)
+        return RunCodeResponse(output=result["output"])
+    except HTTPException:
+        raise
     except FileNotFoundError as e:
-
-        raise HTTPException(
-            status_code=404,
-            detail=str(e)
-        )
-
+        raise HTTPException(status_code=404, detail=str(e))
     except TimeoutError:
-
-        raise HTTPException(
-            status_code=408,
-            detail="Code execution timed out."
-        )
+        raise HTTPException(status_code=408, detail="Code execution timed out.")
 
 
-@router.get(
-    "/download/{filename}"
-)
+@router.get("/download/{filename}")
 def download_generated_code(
-    filename: str
+    filename: str,
+    current_user: User = Depends(get_current_user),
 ):
+    filepath = safe_path("generated", filename)
 
-    filepath = os.path.join(
-        "generated",
-        filename
-    )
-
-    if not os.path.exists(filepath):
-
+    if not filepath.exists():
         raise HTTPException(
             status_code=404,
-            detail="Generated code file not found."
+            detail="Generated code file not found.",
         )
 
     return FileResponse(
-        path=filepath,
-        filename=filename,
-        media_type="text/plain"
+        path=str(filepath),
+        filename=filepath.name,
+        media_type="text/plain",
     )
 
 
-@router.post(
-    "/explain",
-    response_model=ExplainCodeResponse
-)
+@router.post("/explain", response_model=ExplainCodeResponse)
 def explain(
-    request: ExplainCodeRequest
+    request: ExplainCodeRequest,
+    current_user: User = Depends(get_current_user),
 ):
-
     try:
-
-        explanation = explain_code(
-            request.code,
-            request.language
-        )
-
-        return ExplainCodeResponse(
-            explanation=explanation
-        )
-
+        explanation = explain_code(request.code, request.language)
+        return ExplainCodeResponse(explanation=explanation)
     except Exception as e:
-
         raise HTTPException(
             status_code=500,
-            detail=f"Code explanation failed: {str(e)}"
+            detail=f"Code explanation failed: {str(e)}",
         )
