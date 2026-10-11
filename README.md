@@ -1,352 +1,211 @@
-# 🚀 AI Engineering Workspace
+# 🚀 AI Engineering Workspace Using Multi-Agent Systems
 
-An AI-powered engineering workspace built using **FastAPI**, **Python**, **Google Gemini AI**, **SQLAlchemy**, and **JWT Authentication**.
-
-The backend provides multiple AI-powered tools that help developers generate code, build websites, generate professional documents, and clean datasets through REST APIs.
+An enterprise-grade, requirement-driven AI engineering workspace featuring a **FastAPI** backend, **React + TypeScript + Vite** frontend, **Multi-Agent Orchestration Pipeline**, and automated verification/repair workflows.
 
 ---
 
-# 📌 Project Overview
+## 📌 Project Overview
 
-AI Engineering Workspace is a modular FastAPI backend developed as a Final Year Engineering Project.
+**AI Engineering Workspace Using Multi-Agent Systems** is a modular engineering platform developed as a Final Year Engineering Project.
 
-The backend exposes AI-powered REST APIs that integrate with Google Gemini AI while supporting authentication, file handling, and database operations.
-
----
-
-# ✨ Features
-
-## 🔐 Authentication
-
-- User Registration
-- User Login
-- JWT Authentication
-- Password Hashing
-- Protected Routes
-- Current User API
+The platform provides:
+1. **Core AI Engineering Tools**: Code Generation & Explanation, Multi-File Website Building, DOCX Document Generation, and Dataset Cleaning.
+2. **Project-Centric Multi-Agent Lifecycle**: Requirement ingestion, architectural planning, multi-artifact generation, integration, static verification, test execution, defect detection, and repair.
+3. **Enterprise Security**: Path traversal confinement, role/owner isolated access, safe project export, and sandboxed validation.
 
 ---
 
-## 💻 AI Code Tool
+## 👩‍💻 Authors & Attributions
 
-- Generate Code
-- Explain Existing Code
-- Save Generated Code
-- support multi language
-- Download Generated Code
+* **Tejaswini S** — *Original Project Architecture & Core AI Tool Implementation* (Final Year Engineering Project)
+* **Srujan Ranganath** — *Multi-Agent Architecture, Verification Pipeline, Security Controls, and Full-Stack Monorepo Integration*
 
 ---
 
-## 🌐 AI Website Builder
+## 🛠 Tech Stack
 
-- Generate AI Websites
-- React Website Generation
-- Multiple Templates
-- Save Website
-- Download Website ZIP
+### Backend
+* **FastAPI** (v2.0.0 Architecture)
+* **Python 3.12+**
+* **SQLAlchemy ORM** (SQLite default, PostgreSQL configurable)
+* **Pydantic v2**
+* **JWT Authentication & Passlib/Bcrypt**
+* **Google Gemini AI API** (with resilient offline/mock fallback)
+* **pandas, python-docx, openpyxl**
 
----
+### Frontend
+* **React 18**
+* **TypeScript**
+* **Vite**
+* **Tailwind CSS & Lucide Icons**
 
-## 📄 AI Document Generator
-
-- Generate DOCX Documents
-- Resume Template
-- Cover Letter Template
-- Statement of Purpose
-- Project Report
-- Download Documents
-
----
-
-## 🧹 AI Data Cleaner
-
-- Upload CSV Files
-- Remove Duplicate Records
-- Handle Missing Values
-- Clean Dataset
-- Download Cleaned Dataset
+### Testing & Verification
+* **pytest** test suite
+* **Static Test Verifier** (AST analysis, syntax validation)
+* **File Path Security Suite** (Path traversal defenses)
 
 ---
 
-# 🛠 Tech Stack
-
-## Backend
-
-- FastAPI
-- Python 3.12+
-- Uvicorn
-- Pydantic
-
-## Database
-
-- SQLAlchemy ORM
-- SQLite
-- PostgreSQL (Configurable)
-
-## Authentication
-
-- JWT Authentication
-- Password Hashing
-- OAuth2 Password Bearer
-
-## AI
-
-- Google Gemini API
-
-## File Handling
-
-- ZIP File Generation
-- DOCX Generation
-- CSV Processing
-
----
-
-# 📂 Project Structure
+## 📂 Project Structure
 
 ```text
-backend/
+AI-Engineering-Workspace/
+├── backend/                  # FastAPI 2.0 Backend Application
+│   ├── api/                  # Project Lifecycle v1 Routers (projects, requirements, artifacts, etc.)
+│   ├── auth/                 # JWT Authentication, password hashing, dependencies
+│   ├── models/               # SQLAlchemy ORM Models (User, Project, Requirement, Artifact, etc.)
+│   ├── services/             # Pipeline orchestration, LLM service, test runners, verifiers
+│   ├── tests/                # Automated pytest suite (40+ unit and security tests)
+│   ├── tools/                # 4 Core AI Tools (code_tool, website_builder, data_cleaner, document_generator)
+│   ├── utils/                # Security utils (path containment, filename sanitation)
+│   ├── config.py             # Backend configuration and environment management
+│   ├── database.py           # Database engine, session maker, schema migration
+│   ├── main.py               # FastAPI application entry point
+│   ├── requirements.txt      # Python dependencies
+│   └── .env.example          # Backend environment template
 │
-├── auth/
-│   ├── dependencies.py
-│   ├── hashing.py
-│   ├── jwt_handler.py
-│   ├── routes.py
-│   ├── schemas.py
-│   └── service.py
+├── frontend/                 # React + TypeScript + Vite Web Application
+│   ├── src/
+│   │   ├── api/              # API client and mock services
+│   │   ├── components/       # Shared UI components (Navbar, ProtectedRoute, CodeViewer, etc.)
+│   │   ├── context/          # Auth and Toast contexts
+│   │   ├── pages/            # Dashboard, Projects, ProjectStudio, and Tool pages
+│   │   └── types/            # TypeScript interfaces and data contracts
+│   ├── package.json          # Node dependencies
+│   └── vite.config.ts        # Vite configuration
 │
-├── models/
+├── docs/                     # Comprehensive Project Documentation
+│   ├── ARCHITECTURE.md       # Multi-agent system architecture & component diagrams
+│   ├── SECURITY.md           # Threat model, path traversal controls, and audit records
+│   ├── API_WORKFLOW.md       # Complete REST API lifecycle documentation
+│   └── DEVELOPMENT_STATUS.md # Milestone and feature implementation status
 │
-├── services/
-│   └── llm.py
-│
-├── tools/
-│   ├── code_tool/
-│   ├── data_cleaner/
-│   ├── document_generator/
-│   └── website_builder/
-│
-├── uploads/
-├── cleaned_files/
-├── generated/
-├── generated_docs/
-├── generated_websites/
-│
-├── config.py
-├── database.py
-├── main.py
-├── requirements.txt
-├── .env.example
-├── README.md
-└── .gitignore
+├── main.py                   # Root entry point bridging directly to backend.main:app
+├── requirements.txt          # Root Python dependencies reference
+├── API_DOCUMENTATION.md      # Legacy REST API reference
+├── HANDOVER_GUIDE.md         # Operational handover documentation
+├── README.md                 # Project README
+└── .gitignore                # Unified monorepo ignore rules
 ```
 
 ---
 
-# 🔗 API Endpoints
+## ✨ Features & Tools
 
-## Authentication
+### 1. 💻 AI Code Tool
+* Multi-language code generation (Python, JavaScript, TypeScript, Go, Java, C++, Rust).
+* Code explanation and architectural rationale.
+* Project save, static syntax verification, and ZIP download.
 
-| Method | Endpoint |
-|---------|----------|
-| GET | `/auth/test` |
-| POST | `/auth/register` |
-| POST | `/auth/login` |
-| GET | `/auth/me` |
+### 2. 🌐 AI Website Builder
+* Multi-file website generation (HTML, CSS, JavaScript).
+* Live interactive preview.
+* Safe static publishing to `/published/{project_name}/index.html`.
+* One-click ZIP download.
 
----
+### 3. 📄 AI Document Generator
+* Professional DOCX document generation.
+* Standard templates: Resumes, Cover Letters, Statement of Purpose (SOP), and Technical Project Reports.
+* Downloadable Word artifacts.
 
-## Code Tool
+### 4. 🧹 AI Data Cleaner
+* Upload and analyze CSV datasets.
+* Automated missing value imputation, duplicate removal, and data type formatting.
+* Before/after data quality summary reports and CSV export.
 
-| Method | Endpoint |
-|---------|----------|
-| POST | `/code/generate` |
-| POST | `/code/explain` |
-| POST | `/code/save` |
-| POST | `/code/run` |
-| GET | `/code/download/{filename}` |
-
----
-
-## Website Builder
-
-| Method | Endpoint |
-|---------|----------|
-| POST | `/website/generate` |
-| POST | `/website/save` |
-| GET | `/website/download/{project_name}` |
+### 5. 🤖 Multi-Agent Project Lifecycle
+* **Requirements Agent**: Parse and structure functional specifications.
+* **Architecture & Planning Agent**: Decompose requirements into executable engineering tasks.
+* **Artifact Generation Agent**: Generate modular source code, configurations, and assets.
+* **Validation & Testing Agent**: Static analysis and automated test case execution.
+* **Defect & Repair Agent**: Automated defect diagnosis and repair cycle.
 
 ---
 
-## Document Generator
+## ⚙ Installation & Setup
 
-| Method | Endpoint |
-|---------|----------|
-| POST | `/document-generator/generate` |
-| GET | `/document-generator/download/{filename}` |
+### 1. Prerequisites
+* Python 3.12+
+* Node.js v18+ & npm v9+
 
----
-
-## Data Cleaner
-
-| Method | Endpoint |
-|---------|----------|
-| POST | `/data-cleaner/upload` |
-| POST | `/data-cleaner/clean` |
-| GET | `/data-cleaner/download/{filename}` |
-
----
-
-# ⚙ Installation
-
-Clone the repository
-
+### 2. Backend Setup
 ```bash
-git clone <repository-url>
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+# Linux / macOS:
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env and configure SECRET_KEY and GEMINI_API_KEY
 ```
 
-Go to backend
+### 3. Frontend Setup
+```bash
+# Navigate to frontend directory
+cd frontend
 
+# Install dependencies
+npm install
+
+# Configure environment (optional, defaults to http://127.0.0.1:8000)
+cp .env.example .env
+```
+
+---
+
+## ▶ Running the Application
+
+### Start the Backend
+```bash
+# From the repository root:
+python main.py
+# Or from backend directory:
+cd backend
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+* API Server: `http://127.0.0.1:8000`
+* Interactive API Documentation (Swagger): `http://127.0.0.1:8000/docs`
+* ReDoc: `http://127.0.0.1:8000/redoc`
+
+### Start the Frontend
+```bash
+cd frontend
+npm run dev
+```
+* Frontend Application: `http://localhost:5173`
+
+---
+
+## 🧪 Testing
+
+Run the automated backend test suite:
 ```bash
 cd backend
+pytest tests/ -v
 ```
-
-Create virtual environment
-
-```bash
-python -m venv venv
-```
-
-Activate virtual environment
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-### Linux / macOS
-
-```bash
-source venv/bin/activate
-```
-
-Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
+All 40+ unit, integration, and security tests pass out of the box with zero failures.
 
 ---
 
-# 🔑 Environment Variables
+## 🔒 Security Architecture
 
-Create a `.env` file.
-
-Example:
-
-```env
-DATABASE_URL=sqlite:///workspace.db
-
-SECRET_KEY=your_secret_key
-
-GEMINI_API_KEY=your_gemini_api_key
-```
+* **Path Traversal Protection**: All user file access and downloads are strictly confined to authorized subdirectories using `os.path.commonpath` verification.
+* **Cross-User Isolation**: Projects, artifacts, and test runs are isolated by user ownership.
+* **Zero Host Execution Risk**: Arbitrary user/generated code is analyzed statically via Python AST checks without executing unverified code directly on the host.
 
 ---
 
-# ▶ Running the Backend
+## 📄 License
 
-```bash
-uvicorn main:app --reload
-```
-
-Server
-
-```
-http://127.0.0.1:8000
-```
-
-Swagger UI
-
-```
-http://127.0.0.1:8000/docs
-```
-
-ReDoc
-
-```
-http://127.0.0.1:8000/redoc
-```
-
----
-
-# 🧪 Testing
-
-All backend APIs have been tested successfully using Swagger UI.
-
-### Completed Modules
-
-- ✅ Authentication
-- ✅ AI Code Tool
-- ✅ AI Website Builder
-- ✅ AI Document Generator
-- ✅ AI Data Cleaner
-
----
-
-# 📦 Generated Output
-
-Generated files are stored in:
-
-```
-generated/
-generated_docs/
-generated_websites/
-cleaned_files/
-uploads/
-```
-
----
-
-# 🚧 Project Status
-
-## ✅ Backend
-
-- FastAPI Architecture
-- SQLAlchemy Integration
-- JWT Authentication
-- AI Tool Modules
-- REST APIs
-- File Management
-- Swagger Documentation
-
-## 🚧 Frontend
-
-Frontend development is currently in progress.
-
----
-
-# 🔮 Future Enhancements
-
-- React Frontend
-- User Dashboard
-- Chat History
-- Docker Support
-- Cloud Deployment
-- Admin Dashboard
-
----
-
-# 👩‍💻 Developed By
-
-**Tejaswini S**
-
-Final Year Engineering Project
-
-**AI Engineering Workspace**
-
----
-
-# 📄 License
-
-This project is developed for educational and learning purposes.
+Developed for academic and educational purposes under the Final Year Engineering Curriculum.

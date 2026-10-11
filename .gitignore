@@ -1,83 +1,67 @@
-# ==========================================
 # Python
-# ==========================================
-
 __pycache__/
 *.py[cod]
 *$py.class
-
-# ==========================================
-# Virtual Environment
-# ==========================================
-
-venv/
-.venv/
-env/
-
-# ==========================================
-# Environment Variables
-# ==========================================
-
-.env
-
-# ==========================================
-# VS Code
-# ==========================================
-
-.vscode/
-
-# ==========================================
-# JetBrains IDE
-# ==========================================
-
-.idea/
-
-# ==========================================
-# Python Cache
-# ==========================================
-
+*.so
+*.egg-info/
+*.egg
 .pytest_cache/
 .mypy_cache/
 
-# ==========================================
-# Database
-# ==========================================
+# Virtual environments
+.venv/
+venv/
+env/
 
+# Environment secrets
+.env
+.env.local
+.env.*.local
+.env.*
+!.env.example
+!.env.*.example
+
+# Databases
 *.db
 *.sqlite3
 
-# ==========================================
-# Logs
-# ==========================================
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun.lock
 
-*.log
+# Build outputs
+dist/
+build/
+frontend/dist/
 
-# ==========================================
-# OS Files
-# ==========================================
-
-Thumbs.db
-.DS_Store
-
-# ==========================================
-# Generated Files
-# ==========================================
-
+# Generated runtime files
 generated/
 generated_docs/
 generated_websites/
 cleaned_files/
 uploads/
+backend/generated/
+backend/generated_projects/
+backend/published_websites/
+backend/cleaned_files/
+backend/generated_docs/
+backend/project_files/
 
-# ==========================================
-# ZIP Files
-# ==========================================
-
+# Temporary ZIP files
 *.zip
 
-# ==========================================
-# Build Files
-# ==========================================
+# IDE and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
 
-dist/
-build/
+# Logs
+*.log
