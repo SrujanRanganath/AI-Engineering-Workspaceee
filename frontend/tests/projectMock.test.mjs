@@ -81,7 +81,9 @@ test('standalone project lifecycle routes support the existing Project Studio wo
   );
 
   const validation = await projectService.validateProject(project.id);
-  assert.equal(validation.summary.failed, 0);
+  assert.equal(validation.summary.passed, 0);
+  assert.equal(validation.summary.warning, 1);
+  assert.match(validation.results[0].message, /not executed/i);
   assert.deepEqual(await projectService.getDefects(project.id), []);
   assert.ok((await projectService.getRuns(project.id)).total >= 4);
 
@@ -91,8 +93,10 @@ test('standalone project lifecycle routes support the existing Project Studio wo
   });
   assert.equal((await projectService.getTestCase(project.id, testCase.id)).name, testCase.name);
   const result = await projectService.runTestCase(project.id, testCase.id);
-  assert.equal(result.status, 'STATIC_PASS');
-  assert.equal((await projectService.getTestCases(project.id))[0].status, 'passed');
+  assert.equal(result.status, 'simulated');
+  assert.equal(result.verification_type, 'Simulated');
+  assert.equal((await projectService.getTestCases(project.id))[0].status, 'simulated');
+  assert.match(result.message, /no static or runtime test execution occurred/i);
   assert.equal((await projectService.getTestCaseResults(project.id, testCase.id)).length, 1);
   assert.equal((await projectService.getProjectTestResults(project.id)).length, 1);
 

@@ -273,7 +273,15 @@ export async function handleMockProjectRequest(
       return { data: state.specification, status: 200 };
     }
     if (normalizedMethod === 'POST') {
-      const requirement = getRequirement(state, body?.requirement_id);
+      let requirement: Requirement;
+      try {
+        requirement = getRequirement(state, body?.requirement_id);
+      } catch (error) {
+        if ((error as { response?: { status?: number } }).response?.status === 404) {
+          fail(400, 'A requirement must be submitted before generating specification.');
+        }
+        throw error;
+      }
       state.specification = makeSpecification(state.project.name);
       state.project.status = 'specification';
       state.project.updated_at = timestamp;
@@ -296,7 +304,6 @@ export async function handleMockProjectRequest(
       return { data: state.plan, status: 200 };
     }
     if (normalizedMethod === 'POST') {
-      getRequirement(state, body?.requirement_id);
       state.plan = makePlan(state.project.name);
       state.project.status = 'planning';
       state.project.updated_at = timestamp;
@@ -320,7 +327,6 @@ export async function handleMockProjectRequest(
   }
 
   if (resource === 'generate' && normalizedMethod === 'POST') {
-    getLatestRequirement(state);
     const runId = addRun(state, 'artifact_generation');
     const artifacts = [
       createArtifact(state, 'backend', 'service.py', '# Generated standalone backend artifact'),
@@ -355,18 +361,15 @@ export async function handleMockProjectRequest(
     if (state.artifacts.length === 0) {
       fail(400, 'No artifacts exist to validate. Generate artifacts first.');
     }
-    state.project.status = 'validating';
-    state.project.updated_at = timestamp;
-    state.project.status = 'complete';
     return {
       data: {
         project_id: state.project.id,
         results: [{
-          status: 'passed',
+          status: 'warning',
           check: 'standalone_simulation',
-          message: 'Standalone mock validation completed.',
+          message: 'Validation was not executed in standalone simulation mode.',
         }],
-        summary: { passed: 1, failed: 0, warning: 0, total_checks: 1 },
+        summary: { passed: 0, failed: 0, warning: 1, total_checks: 1 },
       } satisfies ValidationRunResponse,
       status: 200,
     };
@@ -379,14 +382,13 @@ export async function handleMockProjectRequest(
   if (resource === 'repair' && normalizedMethod === 'POST') {
     const defect = state.defects.find((item) => item.id === Number(body?.defect_id));
     if (!defect) fail(404, 'Defect not found.');
-    defect.status = 'repaired';
     return {
       data: {
         defect_id: defect.id,
-        status: 'repaired',
+        status: 'simulated',
         strategy: 'standalone_simulation',
         patch: null,
-        message: 'Defect marked as repaired in standalone mode.',
+        message: 'Repair was not performed in standalone simulation mode.',
       } satisfies RepairResponse,
       status: 200,
     };
@@ -435,21 +437,21 @@ export async function handleMockProjectRequest(
       };
     }
     if (action === 'run' && normalizedMethod === 'POST') {
-      testCase.status = 'passed';
+      testCase.status = 'simulated';
       const result: TestExecutionResponse = {
         id: nextTestResultId++,
         test_case_id: testCase.id,
-        status: 'STATIC_PASS',
-        output: 'Standalone test simulation passed.',
+        status: 'simulated',
+        output: 'Test execution was not performed in standalone simulation mode.',
         duration_ms: 0,
         executed_at: timestamp,
-        verification_type: 'Static Verification',
+        verification_type: 'Simulated',
         docker_status: 'NOT EXECUTED',
-        exit_code: 0,
-        stdout: 'Standalone test simulation passed.',
+        exit_code: null,
+        stdout: '',
         stderr: '',
-        message: 'Test passed in standalone mode.',
-        checks: { simulated: true },
+        message: 'No static or runtime test execution occurred.',
+        checks: null,
       };
       state.testResults.unshift(result);
       return { data: result, status: 200 };

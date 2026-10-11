@@ -27,6 +27,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
+import { getBackendMode } from '../api/client';
 import { projectService } from '../api/projectService';
 import {
   Project,
@@ -55,7 +56,7 @@ type ActiveTab =
 export const ProjectStudio: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const projectId = id ? parseInt(id, 10) : 0;
-  const { success, error } = useToast();
+  const { success, error, info } = useToast();
 
   const [project, setProject] = useState<Project | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('requirements');
@@ -187,7 +188,11 @@ export const ProjectStudio: React.FC = () => {
       // 2. Analyze requirement
       const analysis = await projectService.analyzeRequirement(projectId, req.id);
       setStructuredReq(analysis.structured);
-      success('Requirements analyzed and structured successfully!');
+      if (getBackendMode() === 'mock') {
+        info('Requirement analysis was simulated in Standalone mode.');
+      } else {
+        success('Requirements analyzed and structured successfully!');
+      }
       // Refresh runs and project
       const proj = await projectService.getProject(projectId);
       setProject(proj);
@@ -205,7 +210,11 @@ export const ProjectStudio: React.FC = () => {
       setGeneratingSpec(true);
       const res = await projectService.generateSpecification(projectId);
       setSpecification(res.specification);
-      success('Architecture Specification synthesized successfully!');
+      if (getBackendMode() === 'mock') {
+        info('A simulated architecture specification was generated in Standalone mode.');
+      } else {
+        success('Architecture Specification synthesized successfully!');
+      }
       const proj = await projectService.getProject(projectId);
       setProject(proj);
       const rRes = await projectService.getRuns(projectId);
@@ -222,7 +231,11 @@ export const ProjectStudio: React.FC = () => {
       setGeneratingPlan(true);
       const res = await projectService.generatePlan(projectId);
       setPlan(res.plan);
-      success('Multi-tier implementation plan synthesized successfully!');
+      if (getBackendMode() === 'mock') {
+        info('A simulated implementation plan was generated in Standalone mode.');
+      } else {
+        success('Multi-tier implementation plan synthesized successfully!');
+      }
       const proj = await projectService.getProject(projectId);
       setProject(proj);
       const rRes = await projectService.getRuns(projectId);
@@ -242,7 +255,11 @@ export const ProjectStudio: React.FC = () => {
       if (arts.length > 0) {
         setSelectedArtifact(arts[0]);
       }
-      success(`Generated ${arts.length} multi-tier source artifacts!`);
+      if (getBackendMode() === 'mock') {
+        info(`${arts.length} simulated artifacts were created in Standalone mode.`);
+      } else {
+        success(`Generated ${arts.length} multi-tier source artifacts!`);
+      }
       const proj = await projectService.getProject(projectId);
       setProject(proj);
       const rRes = await projectService.getRuns(projectId);
@@ -263,9 +280,14 @@ export const ProjectStudio: React.FC = () => {
       setDefects(defs || []);
       const proj = await projectService.getProject(projectId);
       setProject(proj);
-      success(
-        `Validation complete: ${report.summary.passed} passed, ${report.summary.failed} failed, ${report.summary.warning} warnings`
-      );
+      const simulated = report.results.some((result) => result.check === 'standalone_simulation');
+      if (simulated) {
+        info('Standalone mode did not execute validation; see the report warning.');
+      } else {
+        success(
+          `Validation complete: ${report.summary.passed} passed, ${report.summary.failed} failed, ${report.summary.warning} warnings`
+        );
+      }
     } catch (err: any) {
       error(err.response?.data?.detail || 'Validation failed');
     } finally {
@@ -277,7 +299,11 @@ export const ProjectStudio: React.FC = () => {
     try {
       setRepairingDefectId(defectId);
       const res = await projectService.repairDefect(projectId, defectId);
-      success(`Defect repaired via ${res.strategy}!`);
+      if (res.status === 'simulated') {
+        info('Defect repair was not performed in Standalone mode.');
+      } else {
+        success(`Defect repaired via ${res.strategy}!`);
+      }
       // Refresh artifacts and defects
       const artsRes = await projectService.getArtifacts(projectId);
       setArtifacts(artsRes.artifacts || []);
@@ -359,6 +385,8 @@ export const ProjectStudio: React.FC = () => {
         success(`Test "${testCase.name}": Static verification passed (Docker unavailable).`);
       } else if (result.status === 'STATIC_FAIL' || result.status === 'static_fail') {
         error(`Test "${testCase.name}": Static verification failed: ${result.message || ''}`);
+      } else if (result.status === 'simulated') {
+        info(`Test "${testCase.name}" was not executed in standalone simulation mode.`);
       } else if (result.status === 'runner_unavailable') {
         error(`Runner unavailable: ${result.message || 'Docker is not installed.'}`);
       } else if (result.status === 'passed') {
@@ -1242,7 +1270,7 @@ export const ProjectStudio: React.FC = () => {
                                 tc.status === 'STATIC_FAIL' || tc.status === 'static_fail' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
                                 tc.status === 'passed' ? 'bg-emerald-500/10 text-emerald-400' :
                                 tc.status === 'failed' ? 'bg-rose-500/10 text-rose-400' :
-                                tc.status === 'skipped' ? 'bg-slate-500/10 text-slate-400' :
+                                tc.status === 'skipped' || tc.status === 'simulated' ? 'bg-slate-500/10 text-slate-400' :
                                 'bg-amber-500/10 text-amber-400'
                               }`}>{
                                 tc.status === 'STATIC_PASS' || tc.status === 'static_pass' ? 'STATIC PASS' :
@@ -1280,16 +1308,17 @@ export const ProjectStudio: React.FC = () => {
                         {result && (() => {
                           const isStaticPass = result.status === 'STATIC_PASS' || result.status === 'static_pass';
                           const isStaticFail = result.status === 'STATIC_FAIL' || result.status === 'static_fail';
+                          const isSimulated = result.status === 'simulated';
                           const isStatic = isStaticPass || isStaticFail || result.verification_type === 'Static Verification';
-                          const verificationType = result.verification_type || (isStatic ? 'Static Verification' : 'Docker Runtime');
-                          const dockerStatus = result.docker_status || (isStatic ? 'NOT EXECUTED' : (result.status === 'runner_unavailable' ? 'UNAVAILABLE' : result.status.toUpperCase()));
+                          const verificationType = result.verification_type || (isSimulated ? 'Simulated' : (isStatic ? 'Static Verification' : 'Docker Runtime'));
+                          const dockerStatus = result.docker_status || (isStatic || isSimulated ? 'NOT EXECUTED' : (result.status === 'runner_unavailable' ? 'UNAVAILABLE' : result.status.toUpperCase()));
 
                           return (
                             <div className={`p-3.5 rounded-xl border text-xs space-y-2.5 ${
                               isStaticPass ? 'bg-emerald-500/10 border-emerald-500/30' :
                               isStaticFail ? 'bg-rose-500/10 border-rose-500/30' :
                               result.status === 'passed' ? 'bg-emerald-500/5 border-emerald-500/20' :
-                              result.status === 'runner_unavailable' ? 'bg-slate-800/60 border-slate-700' :
+                              result.status === 'runner_unavailable' || isSimulated ? 'bg-slate-800/60 border-slate-700' :
                               result.status === 'timed_out' ? 'bg-amber-500/5 border-amber-500/20' :
                               'bg-rose-500/5 border-rose-500/20'
                             }`}>
@@ -1309,7 +1338,7 @@ export const ProjectStudio: React.FC = () => {
                                     isStaticPass ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
                                     isStaticFail ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
                                     result.status === 'passed' ? 'text-emerald-400' :
-                                    result.status === 'runner_unavailable' ? 'text-slate-400' :
+                                    result.status === 'runner_unavailable' || isSimulated ? 'text-slate-400' :
                                     result.status === 'timed_out' ? 'text-amber-400' :
                                     'text-rose-400'
                                   }`}>

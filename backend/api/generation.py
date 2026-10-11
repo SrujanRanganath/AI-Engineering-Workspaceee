@@ -214,6 +214,7 @@ def generate_plan(
         if existing_plan:
             existing_plan.content = json.dumps(plan, indent=2)
             existing_plan.generation_run_id = run.id
+            existing_plan.requirement_id = art.requirement_id if art else None
             existing_plan.version += 1
             existing_plan.status = ArtifactStatus.GENERATED.value
             if not existing_plan.created_at:
@@ -233,6 +234,7 @@ def generate_plan(
                 name="implementation_plan.json",
                 path="docs/IMPLEMENTATION_PLAN.json",
                 content=json.dumps(plan, indent=2),
+                requirement_id=art.requirement_id if art else None,
                 status=ArtifactStatus.GENERATED.value,
                 version=1,
                 created_at=now,

@@ -94,7 +94,11 @@ GET  /api/v1/projects/{id}/defects    → Defect[]
 2. Requirement traceability coverage (actors, functional_requirements, entities)
 3. Multi-tier completeness (all 5 tier types present)
 
-Detected failures create `Defect` records.
+Validation checks are persisted. A check is linked to an artifact when the
+validator identifies a matching artifact; detected artifact failures create
+`Defect` records linked to the matching failed check when available. Validation
+is static and does not establish that generated software satisfies its
+requirements or runs correctly.
 
 ### Stage 8 — Repair
 
@@ -102,7 +106,11 @@ Detected failures create `Defect` records.
 POST /api/v1/projects/{id}/repair   { defect_id }   → RepairResponse
 ```
 
-Calls `repair_defect_pipeline()` which attempts LLM-assisted patch generation. Falls back to a stub comment if LLM unavailable.
+Calls `repair_defect_pipeline()`, which may use LLM-assisted patch generation
+or a deterministic, format-specific fallback. Repairs are recorded as
+attempts. A syntax check on the proposed change does not establish semantic
+correctness, and repair does not automatically create a linked post-repair
+validation result.
 
 ### Stage 9 — Tests
 
@@ -132,6 +140,20 @@ GET /api/v1/projects/{id}/runs   → GenerationRunListResponse
 ```
 
 Returns all `GenerationRun` records with operation, provider, model, status, timestamps, and metadata.
+
+### Stage 11 — Persisted Evaluation Summary
+
+```
+GET /api/v1/projects/{id}/evaluation   → project-scoped counts, provenance, metrics, limitations
+```
+
+The report is read-only and owner-authorized. It summarizes persisted backend
+records only; standalone browser mock state is in-memory and excluded. Rates
+include their numerator and denominator, and zero-denominator metrics have a
+`null` value with `insufficient_data` status. Provider metadata does not prove
+that a live model response was produced. Repair success and defect detection
+rates are not measurable because the backend does not persist post-repair
+validation links or an independently labelled ground-truth defect set.
 
 ---
 

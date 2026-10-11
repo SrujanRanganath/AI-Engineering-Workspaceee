@@ -80,27 +80,23 @@ const GEN_STEPS: Record<GenStep, string> = {
 const PRESETS = [
   {
     title: 'Smart College Event & Attendance System',
-    framework: 'HTML/CSS',
     template: 'College Dashboard',
     prompt: DEFAULT_DEMO_PROMPT,
   },
   {
     title: 'SaaS Platform & Tier Pricing',
-    framework: 'HTML/CSS',
     template: 'SaaS Landing',
     prompt:
       'High-conversion developer platform landing page with dark aesthetic, hero section with animated gradient, feature grid with icons, interactive pricing tier switcher (monthly/annual), and customer testimonials carousel.',
   },
   {
     title: 'DevOps Cloud & Telemetry Monitor',
-    framework: 'HTML/CSS',
     template: 'Cloud Dashboard',
     prompt:
       'Cloud infrastructure monitoring dashboard with sidebar navigation, cluster health status cards, CPU/memory/disk resource utilization bar charts, latency distribution heatmap, active alert log table, and deployment pipeline status tracker.',
   },
   {
     title: 'Full-Stack Developer Portfolio Lab',
-    framework: 'HTML/CSS',
     template: 'Portfolio Lab',
     prompt:
       'Senior systems engineer portfolio with dark theme, hero profile section, project case studies grid with tech stack badges, open source contributions heatmap visualization, skills radar, and interactive contact form modal.',
@@ -112,7 +108,6 @@ export const WebsiteBuilder: React.FC = () => {
 
   // ── Inputs ──────────────────────────────────────────────────────────────────
   const [prompt, setPrompt] = useState(DEFAULT_DEMO_PROMPT);
-  const [framework, setFramework] = useState('HTML/CSS');
   const [template, setTemplate] = useState('College Dashboard');
   const [projectName, setProjectName] = useState('smart-college-events');
   const [modifyPrompt, setModifyPrompt] = useState(DEFAULT_MODIFY_PROMPT);
@@ -236,7 +231,7 @@ ${jsCode ? `<script>\n${jsCode}\n</script>` : ''}
     try {
       const payload: WebsiteGenerateRequest = {
         prompt: prompt.trim(),
-        framework: framework.trim() || 'HTML/CSS',
+        framework: 'HTML/CSS',
         template: template.trim() || 'College Dashboard',
       };
 
@@ -305,7 +300,7 @@ ${jsCode ? `<script>\n${jsCode}\n</script>` : ''}
         current_html: htmlCode,
         current_css: cssCode,
         current_js: jsCode,
-        framework: framework.trim() || 'HTML/CSS',
+        framework: 'HTML/CSS',
       };
 
       const response = await apiClient.post<WebsiteGenerateResponse>('/website/modify', payload);
@@ -382,7 +377,6 @@ ${jsCode ? `<script>\n${jsCode}\n</script>` : ''}
 
   const handleApplyPreset = (p: typeof PRESETS[0]) => {
     setPrompt(p.prompt);
-    setFramework(p.framework);
     setTemplate(p.template);
     setProjectName(p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
     info(`Loaded preset: ${p.title}`);
@@ -421,7 +415,7 @@ ${jsCode ? `<script>\n${jsCode}\n</script>` : ''}
       // 1. First save the latest code to the server so it can be zipped
       await apiClient.post<WebsiteSaveResponse>('/website/save', {
         project_name: cleanProjectName,
-        framework: framework.trim() || 'HTML/CSS',
+        framework: 'HTML/CSS',
         app: htmlCode,
         css: cssCode,
         js: jsCode,
@@ -455,7 +449,7 @@ ${jsCode ? `<script>\n${jsCode}\n</script>` : ''}
     try {
       const payload: WebsiteSaveRequest = {
         project_name: cleanName,
-        framework: framework.trim() || 'HTML/CSS',
+        framework: 'HTML/CSS',
         app: htmlCode,
         css: cssCode,
         js: jsCode,
@@ -769,17 +763,11 @@ ${htmlCode}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                  Framework
+                  Output
                 </label>
-                <select
-                  value={framework}
-                  onChange={(e) => setFramework(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                >
-                  <option>HTML/CSS</option>
-                  <option>React</option>
-                  <option>Vue</option>
-                </select>
+                <div className="w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-400">
+                  Static HTML/CSS/JavaScript
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide">

@@ -21,6 +21,7 @@ from fastapi.testclient import TestClient
 from main import app
 from database import Base, engine, SessionLocal
 from models.user import User
+from models.validation import Defect, ValidationRun
 
 
 class TestAIEngineeringWorkspace(unittest.TestCase):
@@ -1086,8 +1087,114 @@ The backend must use a relational database with entities for users, events, regi
             self.assertEqual(a["version"], 2, f"Expected version 2 for {a['name']}")
             self.assertIsNotNone(a.get("created_at"), f"Artifact {a['name']} created_at is None on v2")
 
+    def test_20_evaluation_report_uses_owned_persisted_traceability(self):
+        project_id = self._create_project("Research Evaluation Traceability")
+        other_project_id = self._create_project("Other Evaluation Project")
+        requirement_response = self.client.post(
+            f"/api/v1/projects/{project_id}/requirements",
+            json={"raw_text": "The service must validate project artifacts."},
+            headers=self.headers,
+        )
+        self.assertEqual(requirement_response.status_code, 201, requirement_response.text)
+        requirement_id = requirement_response.json()["id"]
+
+        foreign_requirement = self.client.post(
+            f"/api/v1/projects/{other_project_id}/requirements",
+            json={"raw_text": "This requirement belongs to another project."},
+            headers=self.headers,
+        )
+        self.assertEqual(foreign_requirement.status_code, 201, foreign_requirement.text)
+        foreign_artifact = self.client.post(
+            f"/api/v1/projects/{project_id}/artifacts",
+            json={
+                "artifact_type": "backend",
+                "name": "foreign.py",
+                "content": "pass",
+                "requirement_id": foreign_requirement.json()["id"],
+            },
+            headers=self.headers,
+        )
+        self.assertEqual(foreign_artifact.status_code, 404, foreign_artifact.text)
+
+        artifact_response = self.client.post(
+            f"/api/v1/projects/{project_id}/artifacts",
+            json={
+                "artifact_type": "backend",
+                "name": "broken.py",
+                "content": "def broken(:\n    pass\n",
+                "requirement_id": requirement_id,
+            },
+            headers=self.headers,
+        )
+        self.assertEqual(artifact_response.status_code, 201, artifact_response.text)
+        artifact_id = artifact_response.json()["id"]
+
+        validation_response = self.client.post(
+            f"/api/v1/projects/{project_id}/validate",
+            headers=self.headers,
+        )
+        self.assertEqual(validation_response.status_code, 200, validation_response.text)
+
+        with SessionLocal() as db:
+            validation_run = (
+                db.query(ValidationRun)
+                .filter_by(project_id=project_id, artifact_id=artifact_id, status="failed")
+                .first()
+            )
+            defect = (
+                db.query(Defect)
+                .filter_by(project_id=project_id, artifact_id=artifact_id)
+                .first()
+            )
+            self.assertIsNotNone(validation_run)
+            self.assertIsNotNone(defect)
+            self.assertEqual(defect.validation_run_id, validation_run.id)
+
+        report_response = self.client.get(
+            f"/api/v1/projects/{project_id}/evaluation",
+            headers=self.headers,
+        )
+        self.assertEqual(report_response.status_code, 200, report_response.text)
+        report = report_response.json()
+        self.assertEqual(report["counts"]["requirements"], 1)
+        self.assertEqual(report["counts"]["artifacts"], 1)
+        self.assertEqual(report["counts"]["defects"], 1)
+        self.assertEqual(report["metrics"]["requirement_artifact_traceability"]["value"], 1.0)
+        self.assertEqual(report["metrics"]["artifact_validation_traceability"]["value"], 1.0)
+        self.assertEqual(report["metrics"]["defect_validation_traceability"]["value"], 1.0)
+        self.assertEqual(report["metrics"]["validation_check_pass_rate"]["value"], 0.0)
+        self.assertEqual(report["data_scope"]["execution_mode"], "not_recorded")
+
+        unauthorized_response = self.client.get(
+            f"/api/v1/projects/{project_id}/evaluation",
+        )
+        self.assertEqual(unauthorized_response.status_code, 401)
+
+        other_email = f"evaluation.viewer.{uuid.uuid4().hex[:6]}@rit.ac.in"
+        other_password = "Secur3P@ssw0rd!2026"
+        register_response = self.client.post(
+            "/auth/register",
+            json={
+                "email": other_email,
+                "password": other_password,
+                "name": "Evaluation Viewer",
+            },
+        )
+        self.assertIn(register_response.status_code, [200, 201], register_response.text)
+        login_response = self.client.post(
+            "/auth/login",
+            json={"email": other_email, "password": other_password},
+        )
+        self.assertEqual(login_response.status_code, 200, login_response.text)
+        other_headers = {
+            "Authorization": "Bearer " + login_response.json()["access_token"]
+        }
+        forbidden_project_response = self.client.get(
+            f"/api/v1/projects/{project_id}/evaluation",
+            headers=other_headers,
+        )
+        self.assertEqual(forbidden_project_response.status_code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()
-
-

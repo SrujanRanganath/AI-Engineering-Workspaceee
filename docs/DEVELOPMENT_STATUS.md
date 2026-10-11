@@ -1,125 +1,107 @@
-# AI Engineering Workspace — Development Status
+# Development Status
 
-> Last updated: 2026-10-06
+> Status reflects repository capabilities, not production readiness. See
+> [Research Evaluation](RESEARCH_EVALUATION.md) for the capability matrix,
+> metric definitions, reproducibility protocol, and limits on claims.
 
-## Current State: MVP Complete
-
----
-
-## What Is Implemented
-
-### Backend (FastAPI / SQLAlchemy)
-
-| Feature | Status | Notes |
-|---|---|---|
-| JWT Authentication | ✅ Complete | Register, login, /me |
-| Project CRUD | ✅ Complete | Ownership isolation |
-| Requirement CRUD + Analysis | ✅ Complete | LLM + deterministic fallback |
-| Architecture Specification | ✅ Complete | LLM + template fallback |
-| Implementation Plan | ✅ Complete | LLM + template fallback |
-| Multi-Artifact Generation (5 tiers) | ✅ Complete | Deterministic templates |
-| Artifact CRUD | ✅ Complete | Manual create/update supported |
-| Static Validation | ✅ Complete | AST syntax, traceability, completeness |
-| Defect Detection | ✅ Complete | Persists Defect records |
-| Automated Repair | ✅ Complete | LLM repair + fallback stub |
-| TestCase Registration | ✅ Complete | Linked to artifact + requirement |
-| TestResult Persistence | ✅ Complete | Persisted per run |
-| Docker-Isolated Test Execution | ✅ Complete | `runner_unavailable` if Docker absent |
-| Generation Run History | ✅ Complete | Full audit trail |
-| Legacy Tools | ✅ Complete | /code, /website, /data-cleaner, /document-generator |
-
-### Frontend (React/TypeScript/Vite)
-
-| Feature | Status | Notes |
-|---|---|---|
-| Authentication (Login/Register) | ✅ Complete | JWT stored, protected routes |
-| Projects List Page | ✅ Complete | Create, browse, navigate |
-| ProjectStudio — Requirements | ✅ Complete | NL input, structured breakdown |
-| ProjectStudio — Specification | ✅ Complete | Schema, API contract, security model |
-| ProjectStudio — Plan | ✅ Complete | Phased task graph |
-| ProjectStudio — Artifacts | ✅ Complete | Code viewer, copy, export |
-| ProjectStudio — Validation | ✅ Complete | Scorecard, defect list, repair |
-| ProjectStudio — Tests | ✅ Complete | TestCase CRUD, run, result display |
-| ProjectStudio — Run History | ✅ Complete | Audit log of all LLM runs |
-| Legacy Tool Pages | ✅ Preserved | Code, Website, Docs, Data tools |
-
-### Testing
-
-| Suite | Status |
-|---|---|
-| Backend unit tests | ✅ 13/13 passing |
-| LLM-free (deterministic) | ✅ All tests mock/stub LLM |
-| Frontend build | ✅ TypeScript clean, Vite build passes |
-
----
-
-## Known Limitations
-
-### Must-Fix Before Production
-
-1. **JWT revocation not implemented** — tokens cannot be invalidated before expiry
-2. **SQLite write concurrency** — single writer; use PostgreSQL for concurrent users
-3. **No rate limiting** — add nginx/API gateway rate limiting in production
-4. **CORS `["*"]`** — set specific origins in `.env` for production deployment
-
-### Honest About What Isn't Done
-
-| Feature | Status | Notes |
-|---|---|---|
-| LLM-generated code quality | ⚠️ Template-based fallback | Real LLM output requires valid `GEMINI_API_KEY` |
-| Docker runner image pre-build | ⚠️ Must be built first | `runner_unavailable` returned until image exists |
-| Frontend real-time updates | ❌ Not implemented | Page refresh required for state changes |
-| Audit log UI | ❌ Not implemented | GenerationRun history available via API |
-| Role-based access control | ❌ Not implemented | Single user per account |
-| Multi-user project sharing | ❌ Not implemented | Projects are private per user |
-| Requirement version history | ❌ Partial | Version field exists; no diff UI |
-
----
-
-## How to Start
+## Implemented surfaces
 
 ### Backend
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
+
+| Capability | Current status |
+|---|---|
+| JWT authentication and project ownership checks | Implemented; covered by API tests |
+| Project and requirement CRUD | Implemented |
+| Requirement analysis, specification, plan, and artifact generation | Implemented with provider and deterministic fallback paths |
+| Artifact CRUD and requirement linking | Implemented; cross-project requirement links are rejected |
+| Static validation and defect persistence | Implemented; not runtime or semantic proof |
+| Repair attempts | Implemented; post-repair success is not measurable with current traceability |
+| Test case/result persistence | Implemented |
+| Docker test runner | Conditional; reports unavailable when Docker/image prerequisites are absent |
+| Project evaluation report | Implemented as owner-scoped, read-only `GET /api/v1/projects/{project_id}/evaluation` |
+| Legacy tools | Implemented for code, HTML/CSS/JavaScript website output, CSV/XLSX cleaning, and DOCX generation |
 
 ### Frontend
-```bash
-cd frontend
-npm install
+
+| Capability | Current status |
+|---|---|
+| Login/register and protected pages | Implemented |
+| Project list and project lifecycle | Implemented |
+| Standalone project mock | In-memory simulation; validation warns it was not run, test runs are marked simulated, repair does not mutate |
+| Live API mode | Uses the configured backend base URL and authenticated API client |
+| Legacy tools | Implemented; generated outputs still require user review |
+
+## Verification record
+
+Run checks in the current checkout before release and record their actual
+outputs. The test counts in older project notes describe earlier revisions and
+are not a substitute for running the commands below.
+
+```powershell
+Set-Location backend
+.\.venv\Scripts\python.exe -m pytest tests/ -v
+Set-Location ..\frontend
+npm run test
+npm run lint
+npm run build
+Set-Location ..
+git diff --check
+```
+
+No performance baseline, ground-truth defect benchmark, or automated browser
+end-to-end suite is currently part of the repository. Docker runtime test
+coverage depends on Docker and the runner image. Report those as unavailable
+unless their prerequisites and tests have actually been exercised.
+
+## Important limitations
+
+- LLM-backed operations require configured credentials and may use deterministic
+  fallback output. Persisted provider metadata alone does not prove a live model
+  response.
+- Standalone mock project data is browser-memory-only and resets on reload; its
+  simulated outcomes are not backend evaluation data.
+- Static validation checks syntax and coarse completeness/traceability; it does
+  not prove requirements are satisfied.
+- Docker test execution is conditional. Static verification is not runtime
+  execution.
+- Repair attempts are not linked to a post-repair artifact version and
+  validation run, so repair success rate is not measurable.
+- No independently labelled defect corpus exists, so defect detection rate is
+  not measurable.
+- Website generation produces static HTML/CSS/JavaScript, not a compiled
+  React/Vue application. Published websites are publicly readable after owner
+  authorization.
+- Document generation supports DOCX; the data-cleaner accepts CSV/XLSX subject
+  to its upload limit.
+- Browser automation is not configured. Manual UI inspection is not a
+  substitute for repeatable browser E2E tests.
+
+## Local development
+
+Backend setup and local environment variables are described in
+[`backend/.env.example`](../backend/.env.example). Do not commit populated
+secrets.
+
+```powershell
+Set-Location backend
+.\.venv\Scripts\Activate.ps1
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+In a second terminal:
+
+```powershell
+Set-Location frontend
+npm ci
 npm run dev
 ```
 
-### Run Backend Tests
-```bash
-cd backend
-python -m unittest tests.test_v1_api -v
-```
+The frontend dev server binds port 3000. Select **Standalone Engine** for an
+in-memory simulation or **Live FastAPI** for the configured backend.
 
-### Docker Test Runner Image (optional — for test execution)
-```bash
-# The image is auto-built on first test run if Docker is available
-# To pre-build manually:
-docker build -t ai-engineering-workspace-test-runner:py312-pytest8.3.5 - <<'EOF'
-FROM python:3.12.8-slim-bookworm
-RUN python -m pip install --no-cache-dir pytest==8.3.5 SQLAlchemy==2.0.36 pydantic==2.10.4 fastapi==0.115.6
-RUN useradd --uid 10001 --create-home runner
-USER 10001:10001
-WORKDIR /tmp
-EOF
-```
+## Production work remaining
 
----
-
-## Recommended Next Tasks
-
-1. **PostgreSQL migration** — replace SQLite with PostgreSQL for production
-2. **Frontend polling / WebSocket** — live pipeline status updates
-3. **Requirement version diff** — show changes between requirement versions
-4. **LLM context improvement** — include project history in prompts for better generation
-5. **RBAC** — admin/viewer/editor roles per project
-6. **Docker image CI** — pre-build runner image in CI and push to registry
-7. **Lint / pre-commit hooks** — enforce code quality on commits
-8. **Multi-tenant project sharing** — invite collaborators to projects
+Production use requires, at minimum, deployment-specific secret management,
+rate limiting, explicit CORS configuration, operational monitoring/auditing,
+database concurrency planning, and a reviewed threat model. These are not
+provided by the local-development defaults.

@@ -28,6 +28,8 @@ import { LoadingButton } from '../../components/LoadingButton';
 import { ErrorMessage } from '../../components/ErrorMessage';
 import { useToast } from '../../context/ToastContext';
 
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 export const DataCleaner: React.FC = () => {
   const { success, info } = useToast();
 
@@ -113,6 +115,10 @@ node-ap-east-1,ap-east,78.9,22300,,5`,
 
     if (!hasValidExt) {
       setError('Please select a valid CSV (.csv) or Excel (.xlsx) spreadsheet.');
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError('File size must not exceed 10 MB.');
       return;
     }
 
@@ -388,7 +394,7 @@ node-ap-east-1,ap-east,78.9,22300,,5`,
 
             <div className="flex items-center justify-between pt-1">
               <span className="text-[11px] text-slate-500 font-mono">
-                Formats: .csv, .xlsx (up to 50MB)
+                Formats: .csv, .xlsx (up to 10 MB)
               </span>
 
               <LoadingButton

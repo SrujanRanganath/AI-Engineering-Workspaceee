@@ -12,6 +12,7 @@ from auth.dependencies import get_current_user
 from database import get_db
 from models.user import User
 from models.project import Project
+from models.requirement import Requirement
 from models.artifact import Artifact, ArtifactStatus
 from api.schemas import (
     ArtifactResponse,
@@ -91,6 +92,17 @@ def create_artifact(
     current_user: User = Depends(get_current_user),
 ):
     project = _get_user_project(project_id, current_user.id, db)
+    if request.requirement_id is not None:
+        requirement = (
+            db.query(Requirement)
+            .filter(
+                Requirement.id == request.requirement_id,
+                Requirement.project_id == project.id,
+            )
+            .first()
+        )
+        if not requirement:
+            raise HTTPException(status_code=404, detail="Requirement not found.")
     now = datetime.now(timezone.utc)
     art = Artifact(
         project_id=project.id,

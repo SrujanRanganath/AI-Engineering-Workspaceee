@@ -2,17 +2,17 @@
 
 ## System Overview
 
-The AI Engineering Workspace is a **requirement-driven, multi-artifact software engineering platform**. It takes natural-language software requirements through a structured pipeline and produces validated, testable code artifacts.
+The AI Engineering Workspace is a **requirement-driven, multi-artifact engineering prototype**. It takes natural-language requirements through a structured backend pipeline and produces artifacts with static checks and optional isolated test execution. These checks do not establish that generated code is semantically correct or deployable.
 
 ```
 Natural-language requirement
   → Requirement Analysis (structured JSON)
   → Architecture Specification (schema, API contract, components)
   → Implementation Plan (phased task graph)
-  → Multi-Artifact Generation (DB, backend, frontend, tests, docs)
-  → Static Validation (syntax, traceability, completeness)
-  → Defect Detection & Repair
-  → Test Case Registration & Isolated Execution
+  → Multi-Artifact Generation (database, backend, frontend, tests, docs)
+  → Static Validation (syntax and coarse traceability/completeness checks)
+  → Defect Recording & Repair Attempt
+  → Test Case Registration & Conditional Docker Execution
   → Run History / Traceability
 ```
 
@@ -31,6 +31,7 @@ Natural-language requirement
 │                        BACKEND (FastAPI)                        │
 │  /api/v1/projects/*   Requirements, Spec, Plan, Gen, Validate  │
 │  /api/v1/projects/*/tests/*  TestCase, TestResult, Execution   │
+│  /api/v1/projects/*/evaluation  Persisted-record metrics       │
 │  /auth/*              JWT authentication (register, login, me) │
 │  /code/*  /website/*  /data-cleaner/*  /document-generator/*  │
 └────────────────────────┬───────────────────────────────────────┘
@@ -59,7 +60,7 @@ Natural-language requirement
 |---|---|
 | FastAPI + SQLAlchemy | Async-capable, schema-validated, ORM |
 | JWT authentication | Stateless, compatible with SPA frontend |
-| Docker test isolation | Generated code is untrusted; no host execution |
+| Docker test isolation | Generated code is untrusted; runtime execution is conditional on Docker and runner image availability |
 | Deterministic pipeline fallback | Tests cannot call Gemini; fallback ensures determinism |
 | Pydantic v2 schemas | Strict request/response validation |
 | SQLite default | Zero-setup for local development |
@@ -92,3 +93,16 @@ Natural-language requirement
 - **Fallback**: All pipeline functions have deterministic fallbacks; LLM failure does not crash the pipeline
 
 > The fallback never fabricates realistic AI output — it produces structurally valid but template-based data.
+
+## Verification and evaluation boundaries
+
+- Static validation checks syntax and coarse structural conditions; it does not
+  execute code or prove requirement satisfaction.
+- Test results identify static verification separately from Docker runtime
+  execution. Docker-unavailable results are not treated as runtime passes.
+- Repair attempts are not currently linked to post-repair validation and
+  artifact versions, so repair success cannot be calculated reliably.
+- The owner-scoped project evaluation endpoint summarizes persisted records.
+  Browser-only standalone simulation is in-memory and excluded. Metric
+  definitions and limitations are documented in
+  [Research Evaluation](RESEARCH_EVALUATION.md).

@@ -435,7 +435,12 @@ def run_project_validation(
 ):
     project = _get_user_project(project_id, current_user.id, db)
 
-    artifacts = db.query(Artifact).filter(Artifact.project_id == project.id).all()
+    artifacts = (
+        db.query(Artifact)
+        .filter(Artifact.project_id == project.id)
+        .order_by(Artifact.id.asc())
+        .all()
+    )
     if not artifacts:
         raise HTTPException(status_code=400, detail="No artifacts exist to validate. Generate artifacts first.")
 
@@ -449,23 +454,40 @@ def run_project_validation(
 
     report = validate_artifacts_pipeline(artifacts_data, structured)
 
-    # Persist ValidationRun records
+    artifacts_by_name = {artifact.name: artifact for artifact in artifacts}
+    validation_records = []
     for res in report["results"]:
+        result_artifact = artifacts_by_name.get(res.get("artifact"))
         v_run = ValidationRun(
             project_id=project.id,
+            artifact_id=result_artifact.id if result_artifact else None,
             check_type=res["check"],
             status=res["status"],
             message=res["message"],
             details={"artifact": res.get("artifact"), "requirement": res.get("requirement")},
         )
         db.add(v_run)
+        db.flush()
+        validation_records.append((v_run, result_artifact))
 
     # Persist detected Defects
     for defect_item in report.get("defects", []):
-        matched_art = next((a for a in artifacts if a.name == defect_item.get("artifact_name")), None)
+        matched_art = artifacts_by_name.get(defect_item.get("artifact_name"))
+        matching_validation = next(
+            (
+                validation_run
+                for validation_run, validated_artifact in validation_records
+                if matched_art
+                and validated_artifact
+                and validated_artifact.id == matched_art.id
+                and validation_run.status == "failed"
+            ),
+            None,
+        )
         defect = Defect(
             project_id=project.id,
             artifact_id=matched_art.id if matched_art else None,
+            validation_run_id=matching_validation.id if matching_validation else None,
             severity=defect_item.get("severity", "major"),
             description=defect_item.get("description", "Validation failure"),
             status="open",

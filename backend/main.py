@@ -20,6 +20,7 @@ from api.requirements import router as requirements_router
 from api.artifacts import router as artifacts_router
 from api.generation import router as generation_router
 from api.validation import router as validation_router
+from api.evaluation import router as evaluation_router
 
 # Ensure all database tables exist and are up to date
 from database import ensure_db_schema
@@ -64,6 +65,7 @@ app.include_router(requirements_router)
 app.include_router(artifacts_router)
 app.include_router(generation_router)
 app.include_router(validation_router)
+app.include_router(evaluation_router)
 
 # Published sites are intentionally public once an authenticated owner publishes.
 # Authorization is enforced at POST /website/publish, not on this static mount.
