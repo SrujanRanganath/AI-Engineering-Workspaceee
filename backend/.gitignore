@@ -68,6 +68,7 @@ generated_docs/
 generated_websites/
 cleaned_files/
 uploads/
+resource_owners/
 
 # ==========================================
 # ZIP Files

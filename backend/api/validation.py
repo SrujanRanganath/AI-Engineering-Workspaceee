@@ -3,12 +3,14 @@ Validation, Testing & Repair API routes — /api/v1/projects/{project_id}/valida
 Provides traceability verification, syntax compilation, defect tracking, and automated repair.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+import ast
 import json
+from datetime import datetime, timezone
+from typing import List, Optional, Dict, Any
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, model_validator
+from sqlalchemy.orm import Session
 
 from auth.dependencies import get_current_user
 from database import get_db
@@ -51,6 +53,7 @@ class RepairResponse(BaseModel):
     strategy: str
     patch: Optional[str]
     message: str
+    validation_status: Optional[str] = "not_run"
 
 
 class TestCaseCreate(BaseModel):
@@ -518,36 +521,83 @@ def repair_defect(
 
     artifact = None
     if defect.artifact_id:
-        artifact = db.query(Artifact).filter(Artifact.id == defect.artifact_id).first()
+        # Enforce project boundary isolation: ensure artifact belongs to this user project
+        artifact = (
+            db.query(Artifact)
+            .filter(Artifact.id == defect.artifact_id, Artifact.project_id == project.id)
+            .first()
+        )
 
     original_content = artifact.content if (artifact and artifact.content) else "# Defective Code"
     artifact_name = artifact.name if artifact else "unknown_file.py"
 
     repair_result = repair_defect_pipeline(defect.description, artifact_name, original_content)
 
-    # Persist repair attempt
+    # Integrity verification: Revalidate patch before reporting success
+    patch_content = repair_result.get("patch")
+    is_valid = False
+    validation_status = "not_run"
+    validation_message = ""
+
+    if patch_content and patch_content.strip():
+        if artifact_name.endswith(".py"):
+            try:
+                ast.parse(patch_content)
+                is_valid = True
+                validation_status = "passed"
+                validation_message = "Python AST syntax verification passed."
+            except SyntaxError as syn_err:
+                is_valid = False
+                validation_status = "failed"
+                validation_message = f"Syntax error in synthesized patch: {syn_err.msg} at line {syn_err.lineno}"
+        elif artifact_name.endswith(".json"):
+            try:
+                json.loads(patch_content)
+                is_valid = True
+                validation_status = "passed"
+                validation_message = "JSON syntax verification passed."
+            except Exception as json_err:
+                is_valid = False
+                validation_status = "failed"
+                validation_message = f"Invalid JSON in synthesized patch: {json_err}"
+        else:
+            is_valid = False
+            validation_status = "failed"
+            validation_message = (
+                "No post-repair validator is available for this artifact type; "
+                "the patch was not applied."
+            )
+    else:
+        is_valid = False
+        validation_status = "failed"
+        validation_message = "No patch content was generated."
+
+    if is_valid and artifact:
+        artifact.content = patch_content
+        artifact.version += 1
+        artifact.status = ArtifactStatus.REPAIRED.value
+        defect.status = "repaired"
+        attempt_status = "applied"
+    else:
+        defect.status = "repair_failed"
+        attempt_status = "failed"
+
+    # Persist repair attempt with actual validation result
     attempt = RepairAttempt(
         defect_id=defect.id,
         strategy=repair_result.get("strategy", "llm_repair"),
-        patch=repair_result.get("patch"),
-        status=repair_result.get("status", "applied"),
-        result_message=repair_result.get("message"),
+        patch=patch_content,
+        status=attempt_status,
+        result_message=f"{repair_result.get('message', '')} Validation: {validation_status} ({validation_message})",
     )
     db.add(attempt)
-
-    # Apply patch to artifact if available
-    if artifact and repair_result.get("patch"):
-        artifact.content = repair_result["patch"]
-        artifact.version += 1
-        artifact.status = ArtifactStatus.REPAIRED.value
-
-    defect.status = "repaired"
     db.commit()
 
     return RepairResponse(
         defect_id=defect.id,
         status=defect.status,
         strategy=repair_result.get("strategy", "llm_repair"),
-        patch=repair_result.get("patch"),
-        message=repair_result.get("message", "Defect repaired."),
+        patch=patch_content,
+        message=f"{repair_result.get('message', 'Repair evaluated.')} Validation: {validation_status}",
+        validation_status=validation_status,
     )

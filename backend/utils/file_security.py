@@ -54,12 +54,16 @@ def safe_filename(filename: str) -> str:
     if not filename or filename.strip() == "":
         raise HTTPException(status_code=400, detail="Filename is required.")
 
-    safe_name = os.path.basename(filename.strip())
-
-    if safe_name in ("", ".", ".."):
+    raw = filename.strip()
+    if "/" in raw or "\\" in raw or ":" in raw or "\x00" in raw:
         raise HTTPException(status_code=400, detail="Invalid filename.")
 
-    if ".." in safe_name or "/" in safe_name or "\\" in safe_name:
+    safe_name = os.path.basename(raw)
+
+    if safe_name in ("", ".", "..") or safe_name != raw:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+
+    if ".." in safe_name:
         raise HTTPException(status_code=400, detail="Invalid filename.")
 
     return safe_name
@@ -70,7 +74,9 @@ def safe_path(base_dir: str, filename: str) -> Path:
     base = Path(base_dir).resolve()
     full_path = (base / safe_name).resolve()
 
-    if not str(full_path).startswith(str(base)):
+    try:
+        full_path.relative_to(base)
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid file path.")
 
     return full_path

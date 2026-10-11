@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from services.llm import ask_llm
 from tools.code_tool.utils import save_code
-from utils.file_security import resolve_contained_path
+from utils.file_security import resolve_contained_path, safe_filename
 
 logger = logging.getLogger(__name__)
 
@@ -1041,7 +1041,7 @@ def save_code_project(project_name: str, files: Dict[str, str]) -> Dict[str, Any
     """
     Saves all project files to generated_projects/<safe_project_name>/...
     """
-    safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
+    safe_name = safe_filename(project_name)
     proj_dir = resolve_contained_path(PROJECTS_DIR, safe_name)
     validated_files = []
     for file_path, content in files.items():
@@ -1066,7 +1066,7 @@ def create_code_project_zip(project_name: str, files: Dict[str, str]) -> Path:
     Creates a ZIP archive containing all project files.
     """
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
-    safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
+    safe_name = safe_filename(project_name)
     zip_path = resolve_contained_path(PROJECTS_DIR, f"{safe_name}.zip")
     project_root = PROJECTS_DIR / safe_name
     archive_files = []
@@ -1142,7 +1142,8 @@ def run_generated_code(filename: str):
     if not filename.endswith(".py"):
         return {"output": "Running is currently supported only for Python files."}
     
-    file_path = Path("generated") / filename
+    safe_name = safe_filename(filename)
+    file_path = resolve_contained_path(Path("generated"), safe_name)
     if not file_path.exists():
         raise FileNotFoundError(f"{filename} not found.")
 

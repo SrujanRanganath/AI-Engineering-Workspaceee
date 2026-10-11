@@ -32,11 +32,22 @@ app = FastAPI(
     version="2.0.0",
 )
 
+DEFAULT_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+    "http://127.0.0.1:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS if CORS_ORIGINS else ["*"],
+    allow_origins=CORS_ORIGINS if CORS_ORIGINS else DEFAULT_TRUSTED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
 
@@ -54,7 +65,8 @@ app.include_router(artifacts_router)
 app.include_router(generation_router)
 app.include_router(validation_router)
 
-# Mount published websites for direct, safe static hosting
+# Published sites are intentionally public once an authenticated owner publishes.
+# Authorization is enforced at POST /website/publish, not on this static mount.
 PUBLISHED_DIR = Path("published_websites")
 PUBLISHED_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/published", StaticFiles(directory=str(PUBLISHED_DIR), html=True), name="published")

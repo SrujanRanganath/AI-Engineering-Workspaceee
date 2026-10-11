@@ -1,3 +1,4 @@
+from utils.resource_ownership import check_resource_access, check_and_claim_resource
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 from pathlib import Path
@@ -102,6 +103,7 @@ def save(
 ):
     try:
         project_name = safe_filename(request.project_name)
+        check_and_claim_resource("website_project", project_name, current_user)
         result = save_generated_website(
             project_name,
             request.framework,
@@ -130,6 +132,7 @@ def download(
     """Download the project as a ZIP archive containing all files."""
     try:
         safe_project_name = safe_filename(project_name)
+        check_resource_access("website_project", safe_project_name, current_user, "download")
         zip_file = download_generated_website(safe_project_name)
 
         return FileResponse(
@@ -153,6 +156,7 @@ def generate_download_link(
 ):
     """Generate a single-use, 60-second presigned download token."""
     safe_project_name = safe_filename(project_name)
+    check_resource_access("website_project", safe_project_name, current_user, "download")
     token = secrets.token_urlsafe(32)
     
     with DOWNLOAD_TOKENS_LOCK:
@@ -174,27 +178,39 @@ def generate_download_link(
 
 @router.get("/download-file/{token}/{filename}")
 def download_file_by_token(token: str, filename: str):
-    """Download the ZIP file securely using a single-use token, ignoring the path filename."""
+    """
+    Download the ZIP using a single-use bearer token.
+
+    The token is a 60-second capability issued only after the owner authenticates.
+    Possession of a valid unused token is sufficient; this endpoint does not
+    re-check JWT ownership so a browser can download without sending Authorization.
+    The URL filename is never used as a filesystem path.
+    """
+    # Validate URL filename syntax only; never use it as a filesystem path.
+    safe_filename(filename)
+    if not token or ".." in token or "/" in token or "\\" in token:
+        raise HTTPException(status_code=404, detail="Invalid or already used download token")
+
     with DOWNLOAD_TOKENS_LOCK:
         if token not in DOWNLOAD_TOKENS_CACHE:
             raise HTTPException(status_code=404, detail="Invalid or already used download token")
-            
         data = DOWNLOAD_TOKENS_CACHE.pop(token)
-        
+
     if data["expires"] < time.time():
         raise HTTPException(status_code=401, detail="Download token expired")
-        
+
     safe_project_name = data["project_name"]
     stored_filename = data["expected_filename"]
-    
+
     try:
         zip_file = download_generated_website(safe_project_name)
-        # ONLY use the server-generated stored_filename, ignoring the URL filename parameter
         return FileResponse(
             path=zip_file,
             filename=stored_filename,
             media_type="application/zip",
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Download failed: {str(e)}")
 
@@ -207,7 +223,8 @@ def download_html(
     try:
         from pathlib import Path
         safe_project_name = safe_filename(project_name)
-        html_path = Path("generated_websites") / safe_project_name / "index.html"
+        check_resource_access("website_project", safe_project_name, current_user, "download")
+        html_path = resolve_contained_path(Path("generated_websites"), f"{safe_project_name}/index.html")
 
         if not html_path.exists():
             raise HTTPException(status_code=404, detail=f"HTML file not found for project '{safe_project_name}'. Save the project first.")
@@ -246,6 +263,10 @@ def publish(
             site_id = validate_output_filename(site_id)
 
         publish_dir = resolve_contained_path(PUBLISHED_WEBSITES_DIR, site_id)
+        if publish_dir.exists():
+            check_resource_access("published_site", site_id, current_user, "publish")
+        else:
+            check_and_claim_resource("published_site", site_id, current_user)
 
         files = request.files or {}
         if not files:
@@ -312,4 +333,3 @@ def publish(
             status_code=500,
             detail=f"Publishing website failed: {str(e)}",
         )
-

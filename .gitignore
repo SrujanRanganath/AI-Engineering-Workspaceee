@@ -49,6 +49,8 @@ backend/published_websites/
 backend/cleaned_files/
 backend/generated_docs/
 backend/project_files/
+resource_owners/
+backend/resource_owners/
 
 # Temporary ZIP files
 *.zip

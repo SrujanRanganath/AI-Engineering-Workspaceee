@@ -1,11 +1,11 @@
-import re
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from auth.dependencies import get_current_user
 from models.user import User
-from utils.file_security import safe_filename, safe_path
+from utils.file_security import safe_filename, safe_path, resolve_contained_path
+from utils.resource_ownership import check_resource_access, check_and_claim_resource
 
 from tools.code_tool.schemas import (
     GenerateCodeRequest,
@@ -32,7 +32,6 @@ from tools.code_tool.service import (
     save_generated_code,
     run_generated_code,
     explain_code_with_meta,
-    generate_project_offline_fallback,
 )
 
 router = APIRouter(
@@ -102,14 +101,18 @@ def save_project(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        result = save_code_project(request.project_name, request.files)
+        safe_name = safe_filename(request.project_name)
+        check_and_claim_resource("code_project", safe_name, current_user)
+        result = save_code_project(safe_name, request.files)
         # Also create zip so download is ready
-        create_code_project_zip(request.project_name, request.files)
+        create_code_project_zip(safe_name, request.files)
         return SaveProjectResponse(
             message=result["message"],
             folder=result["folder"],
             file_count=result["file_count"],
         )
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -121,13 +124,15 @@ def download_project_zip(
     project_name: str,
     current_user: User = Depends(get_current_user),
 ):
-    safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", project_name)
-    zip_path = Path("generated_projects") / f"{safe_name}.zip"
+    safe_name = safe_filename(project_name)
+    check_resource_access("code_project", safe_name, current_user, "download")
+    try:
+        zip_path = resolve_contained_path(Path("generated_projects"), f"{safe_name}.zip")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    if not zip_path.exists():
-        # Generate default project on the fly so user always gets valid zip
-        files = generate_project_offline_fallback("Event management system", "Python", "FastAPI Backend", safe_name)
-        zip_path = create_code_project_zip(safe_name, files)
+    if not zip_path.is_file():
+        raise HTTPException(status_code=404, detail="Generated project zip not found.")
 
     return FileResponse(
         path=str(zip_path),
@@ -161,6 +166,7 @@ def save(
 ):
     try:
         filename = safe_filename(request.filename)
+        check_and_claim_resource("code_file", filename, current_user)
         result = save_generated_code(filename, request.code)
         return SaveCodeResponse(
             message=result["message"],
@@ -179,6 +185,7 @@ def run(
 ):
     try:
         filename = safe_filename(request.filename)
+        check_resource_access("code_file", filename, current_user, "run")
         result = run_generated_code(filename)
         return RunCodeResponse(output=result["output"])
     except HTTPException:
@@ -192,7 +199,9 @@ def download_generated_code(
     filename: str,
     current_user: User = Depends(get_current_user),
 ):
-    filepath = safe_path("generated", filename)
+    safe_name = safe_filename(filename)
+    check_resource_access("code_file", safe_name, current_user, "download")
+    filepath = safe_path("generated", safe_name)
 
     if not filepath.exists():
         raise HTTPException(

@@ -11,32 +11,45 @@ os.makedirs(
 )
 
 
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB maximum upload size
+
+
 def clean_data(file):
     """
-    Clean uploaded CSV or Excel file.
+    Clean uploaded CSV or Excel file with strict file size and containment checks.
     """
-
+    import io
     validate_output_filename(file.filename)
 
+    # Read bounded content with size enforcement
+    chunk_size = 64 * 1024
+    total_bytes = bytearray()
+    while True:
+        chunk = file.file.read(chunk_size)
+        if not chunk:
+            break
+        total_bytes.extend(chunk)
+        if len(total_bytes) > MAX_UPLOAD_SIZE:
+            raise ValueError("File size exceeds maximum permitted limit of 10MB.")
+
+    if not total_bytes:
+        raise ValueError("Uploaded file is empty.")
+
+    file_bytes_stream = io.BytesIO(total_bytes)
+
     try:
-
-        if file.filename.endswith(".csv"):
-            df = pd.read_csv(file.file)
+        if file.filename.lower().endswith(".csv"):
+            df = pd.read_csv(file_bytes_stream)
             extension = ".csv"
-
-        elif file.filename.endswith(".xlsx"):
-            df = pd.read_excel(file.file)
+        elif file.filename.lower().endswith(".xlsx"):
+            df = pd.read_excel(file_bytes_stream)
             extension = ".xlsx"
-
         else:
-            raise ValueError(
-                "Only CSV and Excel files are supported."
-            )
-
-    except Exception:
-        raise ValueError(
-            "Unable to read uploaded file."
-        )
+            raise ValueError("Only CSV and Excel files are supported.")
+    except ValueError as ve:
+        raise ve
+    except Exception as exc:
+        raise ValueError(f"Unable to read uploaded file: {str(exc)}")
 
     # Strip whitespace from column names
     df.columns = df.columns.astype(str).str.strip()

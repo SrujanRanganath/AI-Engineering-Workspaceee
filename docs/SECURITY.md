@@ -13,6 +13,20 @@
 Every project-scoped endpoint enforces `project.user_id == current_user.id`.  
 Cross-user access returns `404` (not `403`) to prevent user/project enumeration.
 
+Legacy tool downloads (`/code/*`, `/website/download`, `/website/download-html`, `/data-cleaner/download`, `/document-generator/download`) require the authenticated owner. Missing or unclaimed files are denied and are not claimed by the download request.
+
+### Published websites (intentionally public)
+
+`POST /website/publish` requires an authenticated user. That caller must own `site_id` before files are written. Existing unclaimed publish directories cannot be taken over.
+
+After a successful publish, `GET /published/{site_id}/` is **public static hosting**. Anyone with the URL can read the published files. This is product behavior (shareable site URL), not an authenticated workspace download.
+
+### Website download tokens
+
+`POST /website/generate-download-link/{project_name}` requires the authenticated owner. It issues a 32-byte `token_urlsafe` value, scoped to that project, single-use, and valid for 60 seconds.
+
+`GET /website/download-file/{token}/{filename}` is a **standalone bearer capability**: the token is enough to download that project's ZIP. The `{filename}` path segment is not used as a filesystem path. Invalid, reused, expired, or traversal-like tokens/filenames are rejected.
+
 ---
 
 ## Generated Code Execution
@@ -81,9 +95,17 @@ The following are **never used** in this codebase:
 ## CORS Policy
 
 CORS origins are controlled by `CORS_ORIGINS` in `.env`.  
-If unset, `["*"]` is used (development only — restrict in production).
+If unset, only local development origins (localhost/127.0.0.1 on ports 3000–3002 and 5173) are allowed. Credentials are enabled only with this explicit allow-list, never with `*`.
 
 ---
+
+## Tool resource ownership
+
+Ownership records live under `backend/resource_owners/<type>/<id>.owner`. New claims use `O_CREAT|O_EXCL` so the first writer wins. Missing, empty, or unreadable records deny access (fail closed). Resource IDs are casefolded so `Report.py` and `report.py` cannot be claimed by different users.
+
+Authorization is enforced on the HTTP tool routes before files are read or overwritten. Internal Python service helpers are not a public API; callers that import them directly would bypass route checks. Do not invoke those helpers from new unauthenticated code paths.
+
+This application creates outbound ZIP archives. It does not extract uploaded archives.
 
 ## Known Limitations
 
@@ -94,6 +116,9 @@ If unset, `["*"]` is used (development only — restrict in production).
 5. **No audit log**: User actions are not independently audited (GenerationRun provides partial traceability).
 6. **Host filesystem exposure**: The `workspace.db` SQLite file is on the host filesystem. Backup and restrict access.
 7. **LLM prompt injection**: LLM prompts include user-provided requirement text. Gemini API content policies provide partial protection, but this is not a hardened boundary.
+8. **Ownership locking**: The in-memory ownership lock is process-local. Concurrent claims on one host (or multiple processes sharing the same `resource_owners` directory) are serialized by `O_EXCL` file creation. Multiple app instances **without** a shared `resource_owners` filesystem are not protected and can grant the same name to different users.
+9. **Corrupt ownership files**: Empty or unreadable `.owner` files deny all access, including the original owner, until an administrator removes or repairs the record. Ownership is never auto-reassigned.
+10. **Windows symlink tests**: Path containment follows `Path.resolve()`. Creating symlinks for tests may require Administrator or Developer Mode; those tests skip when symlink creation is unavailable.
 
 ---
 

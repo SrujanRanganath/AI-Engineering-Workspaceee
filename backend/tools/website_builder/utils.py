@@ -1,5 +1,7 @@
 from pathlib import Path
-import shutil
+import zipfile
+
+from utils.file_security import resolve_contained_path, safe_filename
 
 
 GENERATED_WEBSITES_DIR = Path("generated_websites")
@@ -15,8 +17,8 @@ def save_website(
     """
     Save generated website files (HTML, CSS, and optionally JS).
     """
-
-    project_folder = GENERATED_WEBSITES_DIR / project_name
+    safe_proj = safe_filename(project_name)
+    project_folder = resolve_contained_path(GENERATED_WEBSITES_DIR, safe_proj)
 
     project_folder.mkdir(
         parents=True,
@@ -89,22 +91,20 @@ def create_website_zip(
     project_name: str
 ):
     """
-    Create a ZIP file for the generated website.
+    Create a ZIP file for the generated website with path containment.
     """
-
-    project_folder = GENERATED_WEBSITES_DIR / project_name
+    safe_proj = safe_filename(project_name)
+    project_folder = resolve_contained_path(GENERATED_WEBSITES_DIR, safe_proj)
 
     if not project_folder.exists():
         raise FileNotFoundError(
-            f"{project_name} does not exist."
+            f"{safe_proj} does not exist."
         )
 
-    zip_path = GENERATED_WEBSITES_DIR / project_name
+    zip_target = resolve_contained_path(GENERATED_WEBSITES_DIR, f"{safe_proj}.zip")
+    with zipfile.ZipFile(zip_target, "w", zipfile.ZIP_DEFLATED) as archive:
+        for file_path in project_folder.rglob("*"):
+            if file_path.is_file():
+                archive.write(file_path, arcname=file_path.relative_to(project_folder).as_posix())
 
-    shutil.make_archive(
-        str(zip_path),
-        "zip",
-        project_folder
-    )
-
-    return f"{zip_path}.zip"
+    return str(zip_target)
