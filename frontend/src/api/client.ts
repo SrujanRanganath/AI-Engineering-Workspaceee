@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { mockBackend } from './mockService';
+import { handleMockProjectRequest } from './projectMockService';
 
 // Default base URL is http://127.0.0.1:8000 as specified in the backend API contract
 export const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000';
@@ -58,6 +59,8 @@ const defaultAdapter = axios.getAdapter(['xhr', 'http']);
 apiClient.defaults.adapter = async (config) => {
   if (getBackendMode() === 'mock') {
     const url = config.url || '';
+    const parsedUrl = new URL(url, config.baseURL || DEFAULT_API_BASE_URL);
+    const method = (config.method || 'get').toUpperCase();
 
     // Parse body if JSON string
     let body: any = config.data;
@@ -65,6 +68,22 @@ apiClient.defaults.adapter = async (config) => {
       try {
         body = JSON.parse(body);
       } catch {}
+    }
+
+    if (parsedUrl.pathname === '/api/v1/projects' || parsedUrl.pathname.startsWith('/api/v1/projects/')) {
+      const projectResponse = await handleMockProjectRequest(
+        method,
+        parsedUrl.pathname,
+        body,
+        parsedUrl.searchParams
+      );
+      return {
+        data: projectResponse.data,
+        status: projectResponse.status,
+        statusText: projectResponse.status === 204 ? 'No Content' : 'OK',
+        headers: {},
+        config,
+      } as AxiosResponse;
     }
 
     if (url.includes('/auth/login')) {
@@ -123,6 +142,12 @@ apiClient.defaults.adapter = async (config) => {
       const data = await mockBackend.generateDocument(body);
       return { data, status: 200, statusText: 'OK', headers: {}, config } as AxiosResponse;
     }
+
+    throw new AxiosError(
+      `No standalone mock handler for ${method} ${parsedUrl.pathname}`,
+      AxiosError.ERR_NOT_SUPPORT,
+      config
+    );
   }
 
   // If live mode, run default xhr/http adapter
